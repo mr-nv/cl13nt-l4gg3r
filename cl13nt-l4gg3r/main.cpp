@@ -85,23 +85,19 @@ void __stdcall hkdCreateMove(int sequence_number, float input_sample_frametime, 
 
 	// random
 	int AMOUNT_PER_TICK = 2000;
-	int TOTAL_AMOUNT = 20000;
 
 	INetChannel *NetChannel = *reinterpret_cast<INetChannel**>(reinterpret_cast<uintptr_t>(g_pClientState) + 0x9C);
 	if (/*g_MenuOptions->misc_client_lagger or some shit like that && */GetAsyncKeyState(0x56) && pSignonMsg && NetChannel)
 	{
-		if (nTotalSentSignon < TOTAL_AMOUNT)
+		NewSignonMsg(pSignonMsg, 6, g_pClientState->m_nServerCount);
+
+		for (int i = 0; i < AMOUNT_PER_TICK; i++)
 		{
-			NewSignonMsg(pSignonMsg, 6, g_pClientState->m_nServerCount);
-
-			for (int i = 0; i < AMOUNT_PER_TICK; i++)
-			{
-				NetChannel->SendNetMsg((INetMessage*)pSignonMsg, false, false);
-			}
-
-			ClearSignonMsg(pSignonMsg);
-			nTotalSentSignon += AMOUNT_PER_TICK;
+			NetChannel->SendNetMsg((INetMessage*)pSignonMsg, false, false);
 		}
+
+		ClearSignonMsg(pSignonMsg);
+		nTotalSentSignon += AMOUNT_PER_TICK;
 	}
 
 	pVerifiedUserCmd->m_cmd = *pUserCmd;
