@@ -3,6 +3,7 @@
 CClientState* g_pClientState = nullptr;
 IBaseClientDLL* g_pClient = nullptr;
 CInput* g_pInput = nullptr;
+IEngineSound* g_pEngineSound = nullptr;
 
 std::uint8_t* PatternScan(void* module, const char* signature)
 {
@@ -53,6 +54,9 @@ std::uint8_t* PatternScan(void* module, const char* signature)
 using CreateMove = void(__thiscall*)(IBaseClientDLL*, int, float, bool);
 CreateMove oCreateMove;
 
+using EmitSound = void(__stdcall*)(IRecipientFilter&, int, int, const char*, unsigned int, const char*, float, float, int, int, int, const Vector*, const Vector*, void*, bool, float, int);
+EmitSound oEmitSound;
+
 typedef void* (*CreateInterfaceFn)(const char *pName, int *pReturnCode);
 CreateInterfaceFn GetModuleFactory(HMODULE module)
 {
@@ -86,7 +90,7 @@ void __stdcall hkdCreateMove(int sequence_number, float input_sample_frametime, 
 	// random
 	int AMOUNT_PER_TICK = 2000;
 
-	INetChannel *NetChannel = *reinterpret_cast<INetChannel**>(reinterpret_cast<uintptr_t>(g_pClientState) + 0x9C);
+	static INetChannel *NetChannel = *reinterpret_cast<INetChannel**>(reinterpret_cast<uintptr_t>(g_pClientState) + 0x9C);
 	if (/*g_MenuOptions->misc_client_lagger or some shit like that && */GetAsyncKeyState(0x56) && pSignonMsg && NetChannel)
 	{
 		NewSignonMsg(pSignonMsg, 6, g_pClientState->m_nServerCount);
@@ -123,17 +127,28 @@ __declspec(naked) void __stdcall hkdCreateMoveProxy(int sequence_number, float i
 	}
 }
 
+void __stdcall hkdEmitSound(IRecipientFilter& filter, int iEntIndex, int iChannel, const char *pSoundEntry, unsigned int nSoundEntryHash, const char *pSample, float flVolume, float flAttenuation, int nSeed, int iFlags, int iPitch, const Vector *pOrigin, const Vector *pDirection, void* pUtlVecOrigins, bool bUpdatePositions, float soundtime, int speakerentity)
+{
+	if (strstr(pSample, "null"))
+		iFlags = (1 << 2) | (1 << 5);
+
+	oEmitSound(filter, iEntIndex, iChannel, pSoundEntry, nSoundEntryHash, pSample, flVolume, flAttenuation, nSeed, iFlags, iPitch, pOrigin, pDirection, pUtlVecOrigins, bUpdatePositions, soundtime, speakerentity);
+}
+
 bool GetInterfaces()
 {
 	g_pClient = GetInterface<IBaseClientDLL>(GetModuleFactory(GetModuleHandleW(L"client.dll")), "VClient018");
 	if (!g_pClient) return false;
+
+	g_pEngineSound = GetInterface<IEngineSound>(GetModuleFactory(GetModuleHandleW(L"engine.dll")), "IEngineSoundClient003");
+	if (!g_pEngineSound) return false;
 
 	g_pClientState = **(CClientState***)(PatternScan(GetModuleHandleA("engine.dll"), "A1 ? ? ? ? 8B 80 ? ? ? ? C3") + 1);
 	if (!g_pClientState) return false;
 
 	g_pInput = *(CInput**)(PatternScan(GetModuleHandleA("client.dll"), "B9 ? ? ? ? 8B 40 38 FF D0 84 C0 0F 85") + 1);
 	if (!g_pInput) return false;
-	
+
 	/*if (g_pClientState)
 	{
 		char t[64];
@@ -147,8 +162,10 @@ bool GetInterfaces()
 bool Hook()
 {
 	CVMTHookManager* clienthook = new CVMTHookManager((PDWORD*)g_pClient);
+	CVMTHookManager* soundhook = new CVMTHookManager((PDWORD*)g_pEngineSound);
 
 	oCreateMove = (CreateMove)clienthook->HookMethod((DWORD)hkdCreateMoveProxy, 21);
+	oEmitSound = (EmitSound)soundhook->HookMethod((DWORD)hkdEmitSound, 5);
 
 	return true;
 }
