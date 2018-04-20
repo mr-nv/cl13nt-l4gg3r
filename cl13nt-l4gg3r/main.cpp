@@ -85,8 +85,6 @@ void __stdcall hkdCreateMove(int sequence_number, float input_sample_frametime, 
 
 	void* pSignonMsg = malloc(76);
 
-	int nTotalSentSignon = 0;
-
 	// random
 	int AMOUNT_PER_TICK = 2000;
 
@@ -101,7 +99,6 @@ void __stdcall hkdCreateMove(int sequence_number, float input_sample_frametime, 
 		}
 
 		ClearSignonMsg(pSignonMsg);
-		nTotalSentSignon += AMOUNT_PER_TICK;
 	}
 
 	pVerifiedUserCmd->m_cmd = *pUserCmd;
