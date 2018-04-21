@@ -1,2 +1,2 @@
 # cl13nt-l4gg3r
-Niggers.
+21/04/2018 - patched
